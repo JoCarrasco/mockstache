@@ -28,24 +28,29 @@ bool create_projects_folder_if_not_exists() {
     }
 }
 
-int handle_projects_commands(const char** remainingArgs) {
+int handle_projects_commands(const std::vector<std::string> args) {
     if (check_if_projects_folder_exist()) {
         return 1;
     }
 
-    const std::string operation(remainingArgs[0]);
-    const std::string operationFirstValue(remainingArgs[1]);
+    const std::string &operationFirstValue(args[1]);
 
-    if (operation.empty()) {
+    if (operationFirstValue.empty()) {
         return 1;
     }
 
-    if (operation == "list") {
+    if (operationFirstValue == "list") {
         // list all *.db files inside the "projects" folder
 
         const std::string projectsFolder = get_projects_folder();
         const std::vector<std::string> dbFiles = find_db_files(projectsFolder);
         // Pretty print the file names without the .db
+
+        if (dbFiles.empty()) {
+            std::cout << "No projects stored found.";
+            std::cout << std::endl;
+            return 0;
+        }
 
         for (const auto& dbFile : dbFiles) {
             std::cout << dbFile << std::endl;
