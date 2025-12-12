@@ -33,10 +33,8 @@ int process_arguments(const int argc, const std::vector<std::string> &args) {
     }
 
     if (firstCommand == "projects") {
-        handle_projects_commands(args);
+        return handle_projects_commands(args);
     }
 
     return EXIT_SUCCESS;
 }
-
-
