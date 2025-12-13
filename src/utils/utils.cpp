@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <sys/stat.h>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -31,12 +32,33 @@ int create_file(const std::string& full_file_path_str) {
     // Ex path: ~/.config/mockstache/projects/file.db
 
     if (file_exists(full_file_path)) {
-        return 1;
+        return 1; // File already exists
     }
 
     fs::path parent_dir = full_file_path.parent_path();
 
-    // NOTE(future): Continue implementation
+    // Create necessary parent directories recursively
+    std::error_code ec;
+    if (!fs::create_directories(parent_dir, ec) && ec) {
+        // A failure occurred and it's not just because the directory already exists (though
+        // create_directories handles existing directories gracefully, it can still fail
+        // due to permission issues, etc.)
+        // For simplicity, we just return an error code, but you might want to log 'ec.message()'
+        return -1;
+    }
+
+    // Create file
+    std::ofstream ofs(full_file_path);
+
+    if (!ofs) {
+        // Failed to create/open the file (e.g., permission denied)
+        return -2;
+    }
+
+    // The file is created and open. Close it immediately since we only wanted to create it.
+    ofs.close();
+
+    return 0; // Success
 }
 
 bool create_folder_if_not_exists(const std::string& path) {

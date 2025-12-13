@@ -4,6 +4,8 @@
 #include <optional>
 
 #include "../utils/utils.h"
+#include "../db/database.h"
+#include "../db/statements.h"
 
 std::string get_projects_folder() {
     const std::string home = get_home_directory();
@@ -31,11 +33,7 @@ bool create_projects_folder_if_not_exists() {
 }
 
 int handle_projects_commands(const std::vector<std::string> args) {
-    if (check_if_projects_folder_exist() == false) {
-        std::cout << "No projects found in " + get_projects_folder() + ".";
-        return 0;
-    }
-
+    const bool projects_folder_exists = check_if_projects_folder_exist();
     const std::string &operation(args[1]);
 
     if (operation.empty()) {
@@ -43,6 +41,11 @@ int handle_projects_commands(const std::vector<std::string> args) {
     }
 
     if (operation == "list") {
+        if (!projects_folder_exists) {
+            std::cout << "No projects stored found.";
+            std::cout << std::endl;
+            return 1;
+        }
         // list all *.db files inside the "projects" folder
 
         const std::string projectsFolder = get_projects_folder();
@@ -59,6 +62,9 @@ int handle_projects_commands(const std::vector<std::string> args) {
             std::cout << dbFile << std::endl;
         }
     } else if (operation == "add") {
+        if (!projects_folder_exists) {
+            create_projects_folder_if_not_exists();
+        }
         // Compound object
         const std::string &project_name = args[2];
         const std::string &project_description = args[3];
@@ -67,26 +73,63 @@ int handle_projects_commands(const std::vector<std::string> args) {
             project_description,
         };
 
-         return create_project(project_info);
+
+        return create_project(project_info);
     }
 
     return 0;
 }
 
 int create_project(const ProjectInfo& projectInfo) {
-    if (projectInfo.name.empty() || projectInfo.name.back() != '.' || projectInfo.name.back() != '/') {
+
+    if (projectInfo.name.empty()) {
         std::cerr << "No valid project input";
         return 1;
     }
 
-    if (projectInfo.description->empty() || projectInfo.description->back() != '.') {
+    if (projectInfo.description->empty()) {
         std::cerr << "No valid project description input";
         return 1;
     }
 
-    const std::string target_file = get_projects_folder() + "/" + projectInfo.name;
+    const std::string target_file = get_projects_folder() + "/" + projectInfo.name + ".db";
     if (file_exists(target_file)) {
         std::cerr << "The project: " + target_file + " already exists.";
         return 1;
+    }
+
+    // Check if file with the same name exists
+    try {
+        create_file(target_file);
+        std::cout << "Created project: " << target_file << std::endl;
+
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+    }
+}
+
+ProjectInfo get_project_metadata(const std::string &project_name) {
+    const std::string projects_folder = get_projects_folder();
+    const std::string target_file = projects_folder + "/" + project_name + ".db";
+    if (file_exists(target_file)) {
+        SQLiteDB db(target_file);
+        SQLiteDB::ResultSet metadataArr;
+        if (db.query(SQL::GET_PROJECT_METADATA(project_name), metadataArr)) {
+            if (metadataArr.empty()) {
+                std::cout << "No project metadata for " << project_name << std::endl;
+
+            }
+        }
+    }
+}
+
+int saveMetadataToProject(const ProjectInfo& projectInfo) {
+    const std::string projects_folder = get_projects_folder();
+    const std::string target_file = projects_folder + "/" + projectInfo.name + ".db";
+
+    SQLiteDB db(target_file);
+    if (db.isOpen()) {
+        db.execute(SQL::CREATE_METADATA_TABLE);
+        db.execute(SQL::ADD_PROJECT_METADATA(projectInfo.name, projectInfo.description));
     }
 }
