@@ -108,7 +108,7 @@ int create_project(const ProjectInfo& projectInfo) {
     }
 }
 
-ProjectInfo get_project_metadata(const std::string &project_name) {
+std::optional<ProjectInfo> get_project_metadata(const std::string &project_name) {
     const std::string projects_folder = get_projects_folder();
     const std::string target_file = projects_folder + "/" + project_name + ".db";
     if (file_exists(target_file)) {
@@ -117,9 +117,17 @@ ProjectInfo get_project_metadata(const std::string &project_name) {
         if (db.query(SQL::GET_PROJECT_METADATA(project_name), metadataArr)) {
             if (metadataArr.empty()) {
                 std::cout << "No project metadata for " << project_name << std::endl;
-
+                return std::nullopt;
+            } else {
+                // NOTE(wip): Keep on developing this, is not yet finished.
+                return std::nullopt;
             }
+        } else {
+            return std::nullopt;
         }
+    } else {
+        std::cerr << "No project metadata for " << project_name << std::endl;
+        return std::nullopt;
     }
 }
 
@@ -127,9 +135,17 @@ int saveMetadataToProject(const ProjectInfo& projectInfo) {
     const std::string projects_folder = get_projects_folder();
     const std::string target_file = projects_folder + "/" + projectInfo.name + ".db";
 
-    SQLiteDB db(target_file);
-    if (db.isOpen()) {
-        db.execute(SQL::CREATE_METADATA_TABLE);
-        db.execute(SQL::ADD_PROJECT_METADATA(projectInfo.name, projectInfo.description));
+    try {
+        SQLiteDB db(target_file);
+        if (db.isOpen()) {
+            db.execute(SQL::CREATE_METADATA_TABLE);
+            db.execute(SQL::ADD_PROJECT_METADATA(projectInfo.name, projectInfo.description));
+            return 0;
+        } else {
+            return 1;
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 1;
     }
 }
